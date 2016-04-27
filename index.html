@@ -1,0 +1,569 @@
+<!DOCTYPE html>
+
+<head>
+  <title>Fall-back Video Chat</title>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link href="css/bootstrap.min.css" rel="stylesheet" type="text/css">
+  <link href="css/styles.css" rel="stylesheet" type="text/css">
+  <link href="css/star-rating.min.css" media="all" rel="stylesheet" type="text/css" />
+  <link href="css/theme-krajee-svg.min.css" media="all" rel="stylesheet" type="text/css" />
+  <script src="js/jquery-2.2.3.min.js"></script>
+  <script src="js/star-rating.min.js" type="text/javascript"></script>
+</head>
+
+<body>
+  <div id="main" class="container">
+    <div id="error-msg" class="row" style="display:none;">
+      <div class="col-sm-12">
+        <div class="panel panel-danger">
+          <div class="panel-heading">Error</div>
+          <div class="panel-body text-center">
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="row">
+      <div class="col-sm-6">
+        <div class="panel panel-primary in-session" style="display:none;">
+          <div class="panel-heading">Course Material</div>
+          <div id="course-material-body" class="panel-body">
+          </div>
+        </div>
+
+        <div class="panel panel-info student in-session" style="display:none;">
+          <div class="panel-heading">My Review</div>
+          <div class="panel-body">
+            <input id="review-input" class="rating-loading" value="2" dir="ltr" data-size="sm" />
+          </div>
+        </div>
+
+        <div class="panel panel-info teacher in-session" style="display:none;">
+          <div class="panel-heading">My Notes</div>
+          <div class="panel-body">
+            <textarea class="form-control" rows="5"></textarea>
+          </div>
+        </div>
+
+        <div class="panel panel-primary session-summary" style="display:none;">
+          <div class="panel-heading">Session Summary</div>
+          <div class="panel-body">
+            <table class="table table-borderless table-condensed">
+              <tbody>
+                <tr>
+                  <th scope="row">Session ID</th>
+                  <td id='summary-session-id'></td>
+                </tr>
+                <tr>
+                  <th scope="row">Start Time</th>
+                  <td id='summary-session-start-time'></td>
+                </tr>
+                <tr>
+                  <th scope="row">Planned End Time</th>
+                  <td id='summary-planned-end-time'></td>
+                </tr>
+                <tr>
+                  <th scope="row">Actual End Time</th>
+                  <td id='summary-actual-end-time'></td>
+                </tr>
+                <tr>
+                  <th scope="row">Total length of class</th>
+                  <td id='summary-total-length-of-class'></td>
+                </tr>
+                <tr>
+                  <th scope="row">Student speak time</th>
+                  <td id='summary-student-speak-time'></td>
+                </tr>
+                <tr>
+                  <th scope="row">Student Name</th>
+                  <td id='summary-student-name'></td>
+                </tr>
+                <tr>
+                  <th scope="row">Teacher Name</th>
+                  <td id='summary-teacher-name'></td>
+                </tr>
+                <tr>
+                  <th scope="row">Review by Student</th>
+                  <td>
+                    <input id="summary-review" class="rating-loading" dir="ltr" data-size="xs" />
+                  </td>
+                </tr>
+                <tr>
+                  <th scope="row">Notes by Teacher</th>
+                  <td id='summary-notes-by-teacher'></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-= -->
+      <!-- Video -->
+      <!-- =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-= -->
+      <div class="col-sm-6">
+        <div class="panel panel-default">
+          <div class="panel-heading">Video Chat</div>
+          <div class="panel-body">
+            <!-- DISPLAY -->
+            <div class="row">
+              <div class="col-xs-12 text-center">
+                <div id="video-border">
+                  <div class="pubnub-relative">
+                    <div id="video-self">...834y8uask</div>
+                  </div>
+                  <div id="video-display">
+                    <span class="glyphicon glyphicon-flash"></span>
+                  </div>
+                </div>
+                <div id="pubnub-relative">
+                  <div id="pubnub-logo">
+                    <div id="pubnub-logo-img"></div>
+                  </div>
+                </div>
+                <canvas width="300px" height="15px" id="voice-level" style=""></canvas>
+              </div>
+            </div>
+
+            <!-- DIAL CONTROLS -->
+            <div class="row">
+              <div class="col-sm-6 col-xs-7">
+                <div class="form-group" data-toggle="tooltip" title="Target PubNub number">
+                  <div class="input-group">
+                    <div class="input-group-addon">
+                      <span class="glyphicon glyphicon-phone-alt"></span>
+                    </div>
+                    <input id="target-number" class="form-control" type="text" placeholder="Target PubNub #" readonly>
+                  </div>
+                </div>
+              </div>
+              <div class="col-sm-6 col-xs-5 text-center dial-buttons">
+                <button id="dial" class="btn btn-primary" data-toggle="tooltip" title="Start video chat" disabled>
+                  <span class="glyphicon glyphicon-earphone"></span>
+                </button>
+                <button id="hangup" class="btn btn-danger" data-toggle="tooltip" title="End video chat" disabled>
+                  <span class="glyphicon glyphicon-ban-circle"></span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="panel panel-info">
+          <div class="panel-heading">My Personal Info</div>
+          <div class="panel-body">
+            <table class="table table-borderless table-condensed">
+              <tbody>
+                <tr>
+                  <th scope="row">Name</th>
+                  <td id="name"></td>
+                </tr>
+                <tr>
+                  <th scope="row">Role</th>
+                  <td id="role"></td>
+                </tr>
+                <tr>
+                  <th scope="row">Session ID</th>
+                  <td id="session-id"></td>
+                </tr>
+                <tr>
+                  <th scope="row">Start Time</th>
+                  <td id="start-time"></td>
+                </tr>
+                <tr>
+                  <th scope="row">Planned End Time</th>
+                  <td id="planned-end-time"></td>
+                </tr>
+                <tr>
+                  <th scope="row">Speak Time</th>
+                  <td id="speak-time">0 sec</td>
+                </tr>
+                <tr>
+                  <th scope="row">PubNub Number</th>
+                  <td id="pubnub-number"></td>
+                </tr>
+                <tr>
+                  <th id="target-name-header" scope="row"></th>
+                  <td id="target-name"></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=- -->
+  <!-- WebRTC Peer Connections -->
+  <!-- =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=- -->
+  <!-- IMPORTANT: THIS IS AN UNMINIFIED DEVELOPMENT PUBNUB LIBRARY
+    replace this with the latest versioned, minified CDN lib link before
+    you deploy your app to a production enviornment.
+    https://github.com/pubnub/javascript#cdn-links
+-->
+  <script src="api/pubnub-dev.js"></script>
+  <script src="js/webrtc.js"></script>
+  <script src="js/sound.js"></script>
+  <script src="js/pouchdb.min.js"></script>
+  <script>
+    (function() {
+
+      // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
+      // Init
+      // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
+      var root = 'http://' + location.hostname;
+      var remoteCouch = root + ":15984/school";
+      var db = new PouchDB(remoteCouch);
+
+      var urlargs = urlparams();
+      var userID = urlargs.userID;
+      var sessionID = urlargs.sessionID;
+      var number = sessionID + userID;
+
+      $('#pubnub-number').text(number);
+
+      var role = "";
+      var targetID = "";
+      var targetNumber = "";
+      var startTime = undefined;
+      db.get(userID).then(function(userDoc) {
+        if (userDoc.type !== "user") {
+          throw new Error("Incorrect userID");
+        }
+        role = userDoc.role;
+
+        $('#name').text(userDoc.name + ' (' + userID + ')');
+        $('#role').text(role);
+        db.get(sessionID).then(function(sessionDoc) {
+          if (sessionDoc.type !== "session") {
+            throw new Error("Incorrect sessionID");
+          }
+          $('#session-id').text(sessionID);
+          $('#course-material-body').html(
+            '\
+          <img src="' + sessionDoc.imageURL + '" class="img-responsive" alt="Responsive image" style="margin-bottom: 20px" />\
+          <div align="center" class="embed-responsive embed-responsive-16by9">\
+            <video controls class="embed-responsive-item">\
+              <source src="' + sessionDoc.videoURL + '" type="video/mp4">\
+            </video>\
+          </div>'
+          );
+          startTime = new Date(sessionDoc.startTime);
+          $('#start-time').text(startTime.toLocaleString());
+          $('#planned-end-time').text((new Date(sessionDoc.plannedEndTime)).toLocaleString());
+          if (role === 'student') {
+            targetID = sessionDoc.teacher;
+            $('#target-name-header').text('Teacher Name');
+          } else {
+            targetID = sessionDoc.student;
+            $('#target-name-header').text('Student Name');
+          }
+          db.get(targetID).then(function(targetDoc) {
+            if (targetDoc.type !== "user") {
+              throw new Error("Incorrect target userID");
+            }
+            $('#target-name').text(targetDoc.name + ' (' + targetID + ')');
+            targetNumber = sessionID + targetID;
+            $('#target-number').val(targetNumber);
+            $('#dial').attr('disabled', false);
+            $('#hangup').attr('disabled', false);
+            initSession();
+            db.changes({
+              since: 'now',
+              live: true,
+              include_docs: true,
+              doc_ids: [sessionID],
+              heartbeat: 5000
+            }).on('change', function(change) {
+              console.log(change);
+            }).on('error', function(err) {
+              showErrorMsg(err);
+            });
+          }).catch(function(err) {
+            showErrorMsg(err);
+          });
+        }).catch(function(err) {
+          showErrorMsg(err);
+        });
+      }).catch(function(err) {
+        showErrorMsg(err);
+      });
+
+      $('#review-input').rating({
+        hoverOnClear: false,
+        theme: 'krajee-svg',
+        containerClass: 'is-heart',
+        filledStar: '<span class="krajee-icon krajee-icon-heart"></span>',
+        emptyStar: '<span class="krajee-icon krajee-icon-heart"></span>',
+        defaultCaption: '{rating} hearts',
+        starCaptions: function(rating) {
+          return rating == 1 ? 'One heart' : rating + ' hearts';
+        },
+      });
+
+      $('#summary-review').rating({
+        hoverOnClear: false,
+        theme: 'krajee-svg',
+        containerClass: 'is-heart',
+        filledStar: '<span class="krajee-icon krajee-icon-heart"></span>',
+        emptyStar: '<span class="krajee-icon krajee-icon-heart"></span>',
+        displayOnly: true,
+      });
+
+      function showErrorMsg(msg) {
+        $('#error-msg .panel-body').html('<span style="color: red;">' + msg + '</span>');
+        $('#error-msg').show();
+      }
+
+      // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
+      // Get URL Params
+      // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
+      function urlparams() {
+        var params = {};
+        if (location.href.indexOf('?') < 0) return params;
+
+        PUBNUB.each(
+          location.href.split('?')[1].split('&'),
+          function(data) {
+            var d = data.split('=');
+            params[d[0]] = d[1];
+          }
+        );
+
+        return params;
+      }
+
+      // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
+      // Construct URL Param String
+      // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
+      function urlstring(params) {
+        return location.href.split('?')[0] + '?' + PUBNUB.map(
+          params,
+          function(key, val) {
+            return key + '=' + val
+          }
+        ).join('&');
+      }
+
+      // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
+      // Calling & Answering Service
+      // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
+      var video_out = PUBNUB.$('video-display');
+
+      var phone = window.phone = PHONE({
+        number: number, // listen on this line
+        publish_key: 'pub-c-561a7378-fa06-4c50-a331-5c0056d0163c',
+        subscribe_key: 'sub-c-17b7db8a-3915-11e4-9868-02ee2ddab7fe',
+        ssl: true
+      });
+
+      function initSession() {
+        if (role === 'student') {
+          initSessionForStudent();
+        } else {
+          initSessionForTeacher();
+        }
+      }
+
+      function initSessionForStudent() {
+        $('.session-summary').hide();
+        $('.in-session').show();
+        $('.teacher').hide();
+      }
+
+      function initSessionForTeacher() {
+        $('.session-summary').hide();
+        $('.in-session').show();
+        $('.student').hide();
+      }
+
+      function endSession() {
+        $('.in-session').hide();
+        $('.session-summary').show();
+      }
+
+      // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
+      // Video Session Connected
+      // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
+      function connected(session) {
+        initSession();
+        video_out.innerHTML = '';
+        video_out.appendChild(session.video);
+        $('#pubnub-logo').hide();
+        PUBNUB.$('target-number').value = '' + session.number;
+        sounds.play('sound/hi');
+        startVoiceLevelDetection();
+        console.log("Session started");
+      }
+
+      // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
+      // Video Session Ended
+      // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
+      function ended(session) {
+        endSession();
+        $('#pubnub-logo').show();
+        set_icon('facetime-video');
+        sounds.play('sound/goodbye');
+        stopVoiceLevelDetection();
+        console.log("Session ended");
+      }
+
+      // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
+      // Video Session Ended
+      // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
+      function set_icon(icon) {
+        video_out.innerHTML = '<span class="glyphicon glyphicon-' +
+          icon + '"></span>';
+      }
+
+      // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
+      // Start Phone Call
+      // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
+      function dial(number) {
+        // Dial Number
+        var session = phone.dial(number);
+
+        // No Dupelicate Dialing Allowed
+        if (!session) return;
+
+        // Show Connecting Status
+        set_icon('send');
+      }
+
+      // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
+      // Ready to Send or Receive Calls
+      // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
+      phone.ready(function() {
+        // Ready To Call
+        set_icon('facetime-video');
+
+        // Auto Call
+        if ('call' in urlargs) {
+          var number = urlargs['call'];
+          PUBNUB.$('target-number').value = number;
+          dial(number);
+        }
+
+        // Make a Phone Call
+        PUBNUB.bind('mousedown,touchstart', PUBNUB.$('dial'), function() {
+          var number = PUBNUB.$('target-number').value;
+          if (!number) return;
+          dial(number);
+        });
+
+        // Hanup Call
+        PUBNUB.bind('mousedown,touchstart', PUBNUB.$('hangup'), function() {
+          phone.hangup();
+          set_icon('facetime-video');
+        });
+      });
+
+      // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
+      // Receiver for Calls
+      // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
+      phone.receive(function(session) {
+        session.connected(connected);
+        session.ended(ended);
+      });
+
+
+      // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
+      // Problem Occured During Init
+      // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
+      phone.unable(function(details) {
+        console.log("Alert! - Reload Page.");
+        console.log(details);
+        set_icon('remove');
+      });
+
+      // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
+      // Debug Output
+      // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
+      phone.debug(function(details) {
+        // console.log(details);
+      });
+
+      // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
+      // Voice Level Detection
+      // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
+      var speakTime = 0; // in milliseconds
+      var oldSpeakTime = 0;
+      var speakThreshold = 15; // decibel
+      var currStream = undefined;
+
+      function startVoiceLevelDetection() {
+        speakTime = 0;
+        oldSpeakTime = 0;
+
+        navigator.webkitGetUserMedia({
+          audio: true,
+          video: true
+        }, function(stream) {
+          currStream = stream;
+          var maxLevel = 0;
+          var prevLevel = 0;
+          var prevTime = (new Date()).getTime();
+          audioContext = new AudioContext();
+          analyser = audioContext.createAnalyser();
+          microphone = audioContext.createMediaStreamSource(stream);
+          javascriptNode = audioContext.createScriptProcessor(0, 1, 1);
+
+          analyser.smoothingTimeConstant = 0.3;
+          analyser.fftSize = 1024;
+
+          microphone.connect(analyser);
+          analyser.connect(javascriptNode);
+          javascriptNode.connect(audioContext.destination);
+
+          canvas = document.getElementById("voice-level");
+          canvasContext = canvas.getContext("2d");
+
+          javascriptNode.onaudioprocess = function() {
+            var array = new Uint8Array(analyser.frequencyBinCount);
+            analyser.getByteFrequencyData(array);
+            var sumLevel = 0;
+            var currLevel = 0;
+
+            var length = array.length;
+            for (var i = 0; i < length; i++) {
+              sumLevel += array[i];
+            }
+
+            currLevel = sumLevel / length;
+            maxLevel = Math.max(maxLevel, currLevel);
+            prevLevel = currLevel;
+            canvasContext.clearRect(0, 0, canvas.width, canvas.height);
+            canvasContext.fillStyle = '#FFBCBA';
+            canvasContext.fillRect(0, 0, canvas.width * (currLevel / maxLevel), canvas.height);
+            var currTime = (new Date()).getTime();
+            if (currLevel >= speakThreshold && prevLevel >= speakThreshold) {
+              // the user is speaking right now
+              speakTime += currTime - prevTime;
+              // update UI only on sec level
+              if ((speakTime - oldSpeakTime) / 1000 >= 1) {
+                oldSpeakTime = speakTime;
+                $('#speak-time').text(Math.round(speakTime / 1000) + ' sec');
+              }
+            }
+            prevTime = currTime;
+          }
+
+        }, function(e) {
+          console.log(e);
+        });
+      }
+
+      function stopVoiceLevelDetection() {
+        if (currStream) {
+          currStream.getTracks().forEach(function(track) {
+            track.stop();
+          });
+          currStream = undefined;
+        }
+      }
+
+    })();
+  </script>
+</body>
+
+</html>
