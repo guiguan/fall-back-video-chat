@@ -3,12 +3,12 @@
 @Date:   2016-04-27T11:24:57+10:00
 @Email:  root@guiguan.net
 @Last modified by:   root
-@Last modified time: 2016-04-28T23:25:59+08:00
+@Last modified time: 2016-04-28T23:39:31+08:00
 -->
 
-![Live Chat](http://github.com/unicorn.png)
+![Live Chat](https://raw.githubusercontent.com/guiguan/fall-back-video-chat/master/screen_shot_1.png)
 
-![Session Doc](http://github.com/unicorn.png)
+![Session Doc](https://raw.githubusercontent.com/guiguan/fall-back-video-chat/master/screen_shot_2.png)
 
 # Project Summary
 An online class is in session while the video chat server is suddenly overloaded.  Video quality has downgraded severely, you need to implement a fall-back plan that utilizes commercial video application to continue the class session.   Examples of commercial video app ,  Skype, QQ,  WeChat, facetime and etc.
