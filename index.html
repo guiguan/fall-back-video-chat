@@ -41,7 +41,7 @@
         <div class="panel panel-info teacher in-session" style="display:none;">
           <div class="panel-heading">My Notes</div>
           <div class="panel-body">
-            <textarea class="form-control" rows="5"></textarea>
+            <textarea id="notes-by-teacher" class="form-control" rows="5"></textarea>
           </div>
         </div>
 
@@ -175,7 +175,7 @@
                 </tr>
                 <tr>
                   <th scope="row">Speak Time</th>
-                  <td id="speak-time">0 sec</td>
+                  <td id="speak-time"></td>
                 </tr>
                 <tr>
                   <th scope="row">PubNub Number</th>
@@ -193,17 +193,9 @@
     </div>
   </div>
 
-  <!-- =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=- -->
-  <!-- WebRTC Peer Connections -->
-  <!-- =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=- -->
-  <!-- IMPORTANT: THIS IS AN UNMINIFIED DEVELOPMENT PUBNUB LIBRARY
-    replace this with the latest versioned, minified CDN lib link before
-    you deploy your app to a production enviornment.
-    https://github.com/pubnub/javascript#cdn-links
--->
-  <script src="api/pubnub-dev.js"></script>
-  <script src="js/webrtc.js"></script>
-  <script src="js/sound.js"></script>
+  <!-- <script src="api/pubnub-dev.js"></script> -->
+  <!-- <script src="js/webrtc.js"></script> -->
+  <!-- <script src="js/sound.js"></script> -->
   <script src="js/pouchdb.min.js"></script>
   <script>
     (function() {
@@ -211,8 +203,7 @@
       // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
       // Init
       // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
-      var root = 'http://' + location.hostname;
-      var remoteCouch = root + ":15984/school";
+      var remoteCouch = location.origin + "/school";
       var db = new PouchDB(remoteCouch);
 
       var urlargs = urlparams();
@@ -241,16 +232,15 @@
           $('#session-id').text(sessionID);
           $('#course-material-body').html(
             '\
-          <img src="' + sessionDoc.imageURL + '" class="img-responsive" alt="Responsive image" style="margin-bottom: 20px" />\
+          <img src="' + sessionDoc.imageURL +
+            '" class="img-responsive" alt="Responsive image" style="margin-bottom: 20px" />\
           <div align="center" class="embed-responsive embed-responsive-16by9">\
             <video controls class="embed-responsive-item">\
-              <source src="' + sessionDoc.videoURL + '" type="video/mp4">\
+              <source src="' +
+            sessionDoc.videoURL + '" type="video/mp4">\
             </video>\
           </div>'
           );
-          startTime = new Date(sessionDoc.startTime);
-          $('#start-time').text(startTime.toLocaleString());
-          $('#planned-end-time').text((new Date(sessionDoc.plannedEndTime)).toLocaleString());
           if (role === 'student') {
             targetID = sessionDoc.teacher;
             $('#target-name-header').text('Teacher Name');
@@ -267,18 +257,7 @@
             $('#target-number').val(targetNumber);
             $('#dial').attr('disabled', false);
             $('#hangup').attr('disabled', false);
-            initSession();
-            db.changes({
-              since: 'now',
-              live: true,
-              include_docs: true,
-              doc_ids: [sessionID],
-              heartbeat: 5000
-            }).on('change', function(change) {
-              console.log(change);
-            }).on('error', function(err) {
-              showErrorMsg(err);
-            });
+            prepareUI();
           }).catch(function(err) {
             showErrorMsg(err);
           });
@@ -288,6 +267,55 @@
       }).catch(function(err) {
         showErrorMsg(err);
       });
+
+      var lastSeq = 0;
+
+      function pollDBChanges(aliveTime) {
+        var interval = 500;
+        var timeoutID = setTimeout(function() {
+          db.changes({
+            since: lastSeq,
+            include_docs: true,
+            doc_ids: [sessionID]
+          }).on('change', function(change) {
+            lastSeq = change.seq;
+            fillSummary(change.doc);
+          }).on('error', function(err) {
+            showErrorMsg(err);
+          });
+          var remainingTime = aliveTime - interval;
+          if (remainingTime > 0) {
+            pollDBChanges(remainingTime);
+          }
+        }, Math.min(aliveTime, interval));
+      }
+
+      function fillSummary(doc) {
+        $('#summary-session-id').text(sessionID);
+        $('#summary-session-start-time').text((new Date(doc.startTime)).toLocaleString());
+        $('#summary-planned-end-time').text((new Date(doc.plannedEndTime)).toLocaleString());
+        $('#summary-actual-end-time').text((new Date(doc.actualEndTime)).toLocaleString());
+        $('#summary-total-length-of-class').text(formatTimeSpanInMilliseconds(doc.totalLengthOfClass));
+        $('#summary-student-speak-time').text(formatTimeSpanInMilliseconds(doc.studentSpeakTime));
+        db.get(doc.student).then(function(studentDoc) {
+          if (studentDoc.type !== "user") {
+            throw new Error("Incorrect student userID");
+          }
+          $('#summary-student-name').text(studentDoc.name + ' (' + doc.student + ')');
+        }).catch(function(err) {
+          showErrorMsg(err);
+        });
+        db.get(doc.teacher).then(function(teacherDoc) {
+          if (teacherDoc.type !== "user") {
+            throw new Error("Incorrect teacher userID");
+          }
+          $('#summary-teacher-name').text(teacherDoc.name + ' (' + doc.teacher + ')');
+        }).catch(function(err) {
+          showErrorMsg(err);
+        });
+        $('#summary-review').rating('update', doc.reviewByStudent);
+        $('#summary-notes-by-teacher').html(doc.notesByTeacher);
+      }
 
       $('#review-input').rating({
         hoverOnClear: false,
@@ -322,8 +350,7 @@
         var params = {};
         if (location.href.indexOf('?') < 0) return params;
 
-        PUBNUB.each(
-          location.href.split('?')[1].split('&'),
+        location.href.split('?')[1].split('&').forEach(
           function(data) {
             var d = data.split('=');
             params[d[0]] = d[1];
@@ -337,41 +364,52 @@
       // Construct URL Param String
       // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
       function urlstring(params) {
-        return location.href.split('?')[0] + '?' + PUBNUB.map(
-          params,
-          function(key, val) {
-            return key + '=' + val
+        var array = [];
+        for (var key in params) {
+          if (params.hasOwnProperty(key)) {
+            array.push(key + '=' + params[key]);
           }
-        ).join('&');
+        }
+        return location.href.split('?')[0] + '?' + array.join('&');
       }
 
       // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
       // Calling & Answering Service
       // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
-      var video_out = PUBNUB.$('video-display');
+      // var video_out = PUBNUB.$('video-display');
+      var video_out = $('#video-display').get(0);
 
-      var phone = window.phone = PHONE({
-        number: number, // listen on this line
-        publish_key: 'pub-c-561a7378-fa06-4c50-a331-5c0056d0163c',
-        subscribe_key: 'sub-c-17b7db8a-3915-11e4-9868-02ee2ddab7fe',
-        ssl: true
-      });
+      // var phone = window.phone = PHONE({
+      //   number: number, // listen on this line
+      //   publish_key: 'pub-c-561a7378-fa06-4c50-a331-5c0056d0163c',
+      //   subscribe_key: 'sub-c-17b7db8a-3915-11e4-9868-02ee2ddab7fe',
+      //   ssl: true
+      // });
 
       function initSession() {
+        prepareUI();
+        startTime = new Date();
+        $('#start-time').text(startTime.toLocaleString());
+        plannedEndTime = new Date(startTime.getTime() + 3600000);
+        $('#planned-end-time').text(plannedEndTime.toLocaleString());
+        $('#speak-time').text('0 sec');
+      }
+
+      function prepareUI() {
         if (role === 'student') {
-          initSessionForStudent();
+          prepareUIForStudent();
         } else {
-          initSessionForTeacher();
+          prepareUIForTeacher();
         }
       }
 
-      function initSessionForStudent() {
+      function prepareUIForStudent() {
         $('.session-summary').hide();
         $('.in-session').show();
         $('.teacher').hide();
       }
 
-      function initSessionForTeacher() {
+      function prepareUIForTeacher() {
         $('.session-summary').hide();
         $('.in-session').show();
         $('.student').hide();
@@ -380,6 +418,23 @@
       function endSession() {
         $('.in-session').hide();
         $('.session-summary').show();
+
+        // upload session info
+        upsert(db, sessionID, function(doc) {
+          if (role === 'student') {
+            // student side will responsible for updating all info except teacher's notes. This can prevent conflict
+            doc.startTime = startTime.toISOString();
+            doc.plannedEndTime = plannedEndTime.toISOString();
+            var actualEndTime = new Date();
+            doc.actualEndTime = actualEndTime.toISOString();
+            doc.totalLengthOfClass = actualEndTime.getTime() - startTime.getTime();
+            doc.studentSpeakTime = speakTime;
+            doc.reviewByStudent = $('#review-input').val();
+          } else {
+            doc.notesByTeacher = $('#notes-by-teacher').val();
+          }
+          return doc;
+        });
       }
 
       // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
@@ -388,11 +443,11 @@
       function connected(session) {
         initSession();
         video_out.innerHTML = '';
-        video_out.appendChild(session.video);
+        // video_out.appendChild(session.video);
         $('#pubnub-logo').hide();
-        PUBNUB.$('target-number').value = '' + session.number;
-        sounds.play('sound/hi');
-        startVoiceLevelDetection();
+        // PUBNUB.$('target-number').value = '' + session.number;
+        // sounds.play('sound/hi');
+        // startVoiceLevelDetection();
         console.log("Session started");
       }
 
@@ -401,19 +456,42 @@
       // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
       function ended(session) {
         endSession();
+        lastSeq = 0;
+        pollDBChanges(10000);
         $('#pubnub-logo').show();
         set_icon('facetime-video');
-        sounds.play('sound/goodbye');
-        stopVoiceLevelDetection();
+        // sounds.play('sound/goodbye');
+        // stopVoiceLevelDetection();
         console.log("Session ended");
       }
 
-      // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
-      // Video Session Ended
-      // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
       function set_icon(icon) {
         video_out.innerHTML = '<span class="glyphicon glyphicon-' +
           icon + '"></span>';
+      }
+
+      function upsert(db, docId, deltaFunc) {
+        return db.get(docId).catch(function(err) {
+          if (err.status !== 404) { // some error other than "not found"
+            showErrorMsg(err);
+            throw err;
+          }
+          return {
+            _id: docId
+          }; // default doc
+        }).then(function(doc) {
+          return tryAndPut(db, deltaFunc(doc), deltaFunc);
+        });
+      }
+
+      function tryAndPut(db, doc, deltaFunc) {
+        return db.put(doc).catch(function(err) {
+          if (err.status !== 409) { // some error other than "conflict"
+            showErrorMsg(err);
+            throw err;
+          }
+          return upsert(db, doc, deltaFunc);
+        });
       }
 
       // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
@@ -433,55 +511,65 @@
       // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
       // Ready to Send or Receive Calls
       // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
-      phone.ready(function() {
-        // Ready To Call
+      // phone.ready(function() {
+      //   // Ready To Call
+      //   set_icon('facetime-video');
+      //
+      //   // Auto Call
+      //   if ('call' in urlargs) {
+      //     var number = urlargs['call'];
+      //     PUBNUB.$('target-number').value = number;
+      //     dial(number);
+      //   }
+      //
+      //   // Make a Phone Call
+      //   PUBNUB.bind('mousedown,touchstart', PUBNUB.$('dial'), function() {
+      //     var number = PUBNUB.$('target-number').value;
+      //     if (!number) return;
+      //     dial(number);
+      //     connected();
+      //   });
+      //
+      //   // Hanup Call
+      //   PUBNUB.bind('mousedown,touchstart', PUBNUB.$('hangup'), function() {
+      //     phone.hangup();
+      //     set_icon('facetime-video');
+      //     ended();
+      //   });
+      // });
+      $('#dial').bind('mousedown touchstart', function() {
+        connected();
+      });
+
+      $('#hangup').bind('mousedown touchstart', function() {
         set_icon('facetime-video');
-
-        // Auto Call
-        if ('call' in urlargs) {
-          var number = urlargs['call'];
-          PUBNUB.$('target-number').value = number;
-          dial(number);
-        }
-
-        // Make a Phone Call
-        PUBNUB.bind('mousedown,touchstart', PUBNUB.$('dial'), function() {
-          var number = PUBNUB.$('target-number').value;
-          if (!number) return;
-          dial(number);
-        });
-
-        // Hanup Call
-        PUBNUB.bind('mousedown,touchstart', PUBNUB.$('hangup'), function() {
-          phone.hangup();
-          set_icon('facetime-video');
-        });
+        ended();
       });
 
       // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
       // Receiver for Calls
       // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
-      phone.receive(function(session) {
-        session.connected(connected);
-        session.ended(ended);
-      });
+      // phone.receive(function(session) {
+      //   session.connected(connected);
+      //   session.ended(ended);
+      // });
 
 
       // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
       // Problem Occured During Init
       // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
-      phone.unable(function(details) {
-        console.log("Alert! - Reload Page.");
-        console.log(details);
-        set_icon('remove');
-      });
+      // phone.unable(function(details) {
+      //   console.log("Alert! - Reload Page.");
+      //   console.log(details);
+      //   set_icon('remove');
+      // });
 
       // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
       // Debug Output
       // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
-      phone.debug(function(details) {
-        // console.log(details);
-      });
+      // phone.debug(function(details) {
+      //   // console.log(details);
+      // });
 
       // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
       // Voice Level Detection
@@ -542,7 +630,7 @@
               // update UI only on sec level
               if ((speakTime - oldSpeakTime) / 1000 >= 1) {
                 oldSpeakTime = speakTime;
-                $('#speak-time').text(Math.round(speakTime / 1000) + ' sec');
+                $('#speak-time').text(formatTimeSpanInMilliseconds(speakTime));
               }
             }
             prevTime = currTime;
@@ -551,6 +639,77 @@
         }, function(e) {
           console.log(e);
         });
+      }
+
+      (function() {
+        /**
+         * Decimal adjustment of a number.
+         *
+         * @param {String}  type  The type of adjustment.
+         * @param {Number}  value The number.
+         * @param {Integer} exp   The exponent (the 10 logarithm of the adjustment base).
+         * @returns {Number} The adjusted value.
+         */
+        function decimalAdjust(type, value, exp) {
+          // If the exp is undefined or zero...
+          if (typeof exp === 'undefined' || +exp === 0) {
+            return Math[type](value);
+          }
+          value = +value;
+          exp = +exp;
+          // If the value is not a number or the exp is not an integer...
+          if (isNaN(value) || !(typeof exp === 'number' && exp % 1 === 0)) {
+            return NaN;
+          }
+          // Shift
+          value = value.toString().split('e');
+          value = Math[type](+(value[0] + 'e' + (value[1] ? (+value[1] - exp) : -exp)));
+          // Shift back
+          value = value.toString().split('e');
+          return +(value[0] + 'e' + (value[1] ? (+value[1] + exp) : exp));
+        }
+
+        // Decimal round
+        if (!Math.round10) {
+          Math.round10 = function(value, exp) {
+            return decimalAdjust('round', value, exp);
+          };
+        }
+        // Decimal floor
+        if (!Math.floor10) {
+          Math.floor10 = function(value, exp) {
+            return decimalAdjust('floor', value, exp);
+          };
+        }
+        // Decimal ceil
+        if (!Math.ceil10) {
+          Math.ceil10 = function(value, exp) {
+            return decimalAdjust('ceil', value, exp);
+          };
+        }
+      })();
+
+      function formatTimeSpanInMilliseconds(ms) {
+        var sec = ms / 1000;
+
+        function output(value, exp, unit) {
+          return Math.round10(value, exp) + ' ' + unit;
+        }
+        if (sec >= 1) {
+          var min = sec / 60;
+          if (min >= 1) {
+            var hour = min / 60;
+            if (hour >= 1) {
+              return output(hour, -3, 'hour');
+            } else {
+              return output(min, -2, 'min');
+            }
+          } else {
+            return output(sec, -1, 'sec');
+          }
+        } else {
+          return output(sec, -2, 'sec');
+        }
       }
 
       function stopVoiceLevelDetection() {
