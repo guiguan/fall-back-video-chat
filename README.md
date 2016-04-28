@@ -3,7 +3,7 @@
 @Date:   2016-04-27T11:24:57+10:00
 @Email:  root@guiguan.net
 @Last modified by:   root
-@Last modified time: 2016-04-28T23:39:31+08:00
+@Last modified time: 2016-04-29T00:12:50+08:00
 -->
 
 ![Live Chat](https://raw.githubusercontent.com/guiguan/fall-back-video-chat/master/screen_shot_1.png)
@@ -25,6 +25,7 @@ An online class is in session while the video chat server is suddenly overloaded
 
 # Features
 1. The fall-back video chat is implemented using WebRTC, which is a realtime P2P realtime video chat approach.
+2. Implemented a speech duration detection using client's microphone. For sake of accuracy, wearing a headphone during a chat session is recommended. 
 2. <del>Database is implemented using PouchDB, where each client has a local in-browser copy that can sync automatically with the central database. This can potentially make the system more scalable and support a better offline experience.</del> Unfortunately, at the moment, `pouchdb-server` is buggy, where it cannot keep a stable live connection between database and clients (precisely, always got ETIMEOUT error), and therefore no server-push is possible. I am using a very naive polling approach to get newest updates from a single central database.
 3. Fluid and mobile friendly user interfaces.
 
