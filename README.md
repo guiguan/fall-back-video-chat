@@ -3,8 +3,12 @@
 @Date:   2016-04-27T11:24:57+10:00
 @Email:  root@guiguan.net
 @Last modified by:   root
-@Last modified time: 2016-04-28T15:52:57+10:00
+@Last modified time: 2016-04-28T23:25:59+08:00
 -->
+
+![Live Chat](http://github.com/unicorn.png)
+
+![Session Doc](http://github.com/unicorn.png)
 
 # Project Summary
 An online class is in session while the video chat server is suddenly overloaded.  Video quality has downgraded severely, you need to implement a fall-back plan that utilizes commercial video application to continue the class session.   Examples of commercial video app ,  Skype, QQ,  WeChat, facetime and etc.
@@ -12,15 +16,16 @@ An online class is in session while the video chat server is suddenly overloaded
 ## Input Assumption
 * The session start time is the time user starts their fall-back video chat
 * The planned end time will be one hour after the session starts
-* Session ID, student ID and teacher ID are provided via URL params, and all other info should be provided in database or implicitly figured out by the interface
+* Session ID, student ID and teacher ID are provided via URL params, and all other info are provided in database or implicitly figured out by the interface
 * Image and video URLs are provided in database
 
-## System output
+## System Output
 * A web interface for student and teacher to continue their video chat session
+* A summary with some statistics for a session when it is completed
 
 # Features
 1. The fall-back video chat is implemented using WebRTC, which is a realtime P2P realtime video chat approach.
-2. <del>Database is implemented using PouchDB, where each client has a local in-browser copy that can sync automatically with the central database. This can potentially make the system more scalable and support a better offline experience.</del> Unfortunately, at the moment, `pouchdb-server` is buggy, where it cannot keep a stable live connection between database and clients (precisely, always got ETIMEOUT error), and therefore no server-push is possible. I am using a very naive polling approch to get newest updates from database.
+2. <del>Database is implemented using PouchDB, where each client has a local in-browser copy that can sync automatically with the central database. This can potentially make the system more scalable and support a better offline experience.</del> Unfortunately, at the moment, `pouchdb-server` is buggy, where it cannot keep a stable live connection between database and clients (precisely, always got ETIMEOUT error), and therefore no server-push is possible. I am using a very naive polling approach to get newest updates from a single central database.
 3. Fluid and mobile friendly user interfaces.
 
 # Server Setup
@@ -30,6 +35,6 @@ An online class is in session while the video chat server is suddenly overloaded
 4. You may now access web interfaces at https://IP_HOST:9000. A database admin inteface can be accessed at `/_utils`. Client interfaces can be accessed as follows.
 
 # Client Usage
-* For teacher, open Google Chrome and visit https://IP_HOST:9000/?role=teacher.
-* For student, open Google Chrome and visit https://IP_HOST:9000/?role=student or simply https://IP_HOST:4443/.
-* *NOTE*: you may need to trust the self-signed certificate for the app to work properly. Also, you may need to force Chrome to allow mixed-content by clicking the shield icon on the right hand side of the address bar.
+* For **teacher**, open Google Chrome and visit https://IP_HOST:9000/?userID=2&sessionID=3
+* For **student**, open Google Chrome and visit https://IP_HOST:9000/?userID=1&sessionID=3
+* _**NOTES**_: Remember to use https secure connections. Newest version of Google Chrome is needed. Tested under Google Chrome Version 50.0.2661.86 (64-bit) for Mac OSX. For security reasons, you may need to trust the self-signed certificate for the app to work properly. Also, you may need to force Chrome to allow mixed-content by clicking the shield icon on the right hand side of the address bar.

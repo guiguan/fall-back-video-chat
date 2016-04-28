@@ -34,7 +34,7 @@
         <div class="panel panel-info student in-session" style="display:none;">
           <div class="panel-heading">My Review</div>
           <div class="panel-body">
-            <input id="review-input" class="rating-loading" value="2" dir="ltr" data-size="sm" />
+            <input id="review-input" class="rating-loading" dir="ltr" data-size="sm" />
           </div>
         </div>
 
@@ -193,9 +193,9 @@
     </div>
   </div>
 
-  <!-- <script src="api/pubnub-dev.js"></script> -->
-  <!-- <script src="js/webrtc.js"></script> -->
-  <!-- <script src="js/sound.js"></script> -->
+  <script src="js/pubnub-dev.js"></script>
+  <script src="js/webrtc.js"></script>
+  <script src="js/sound.js"></script>
   <script src="js/pouchdb.min.js"></script>
   <script>
     (function() {
@@ -376,15 +376,14 @@
       // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
       // Calling & Answering Service
       // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
-      // var video_out = PUBNUB.$('video-display');
-      var video_out = $('#video-display').get(0);
+      var video_out = PUBNUB.$('video-display');
 
-      // var phone = window.phone = PHONE({
-      //   number: number, // listen on this line
-      //   publish_key: 'pub-c-561a7378-fa06-4c50-a331-5c0056d0163c',
-      //   subscribe_key: 'sub-c-17b7db8a-3915-11e4-9868-02ee2ddab7fe',
-      //   ssl: true
-      // });
+      var phone = window.phone = PHONE({
+        number: number, // listen on this line
+        publish_key: 'pub-c-561a7378-fa06-4c50-a331-5c0056d0163c',
+        subscribe_key: 'sub-c-17b7db8a-3915-11e4-9868-02ee2ddab7fe',
+        ssl: true
+      });
 
       function initSession() {
         prepareUI();
@@ -422,7 +421,8 @@
         // upload session info
         upsert(db, sessionID, function(doc) {
           if (role === 'student') {
-            // student side will responsible for updating all info except teacher's notes. This can prevent conflict
+            // student side will responsible for updating all info except
+            // teacher's notes. This can prevent update conflicts
             doc.startTime = startTime.toISOString();
             doc.plannedEndTime = plannedEndTime.toISOString();
             var actualEndTime = new Date();
@@ -443,11 +443,11 @@
       function connected(session) {
         initSession();
         video_out.innerHTML = '';
-        // video_out.appendChild(session.video);
+        video_out.appendChild(session.video);
         $('#pubnub-logo').hide();
-        // PUBNUB.$('target-number').value = '' + session.number;
-        // sounds.play('sound/hi');
-        // startVoiceLevelDetection();
+        PUBNUB.$('target-number').value = '' + session.number;
+        sounds.play('sound/hi');
+        startVoiceLevelDetection();
         console.log("Session started");
       }
 
@@ -460,8 +460,8 @@
         pollDBChanges(10000);
         $('#pubnub-logo').show();
         set_icon('facetime-video');
-        // sounds.play('sound/goodbye');
-        // stopVoiceLevelDetection();
+        sounds.play('sound/goodbye');
+        stopVoiceLevelDetection();
         console.log("Session ended");
       }
 
@@ -511,65 +511,55 @@
       // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
       // Ready to Send or Receive Calls
       // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
-      // phone.ready(function() {
-      //   // Ready To Call
-      //   set_icon('facetime-video');
-      //
-      //   // Auto Call
-      //   if ('call' in urlargs) {
-      //     var number = urlargs['call'];
-      //     PUBNUB.$('target-number').value = number;
-      //     dial(number);
-      //   }
-      //
-      //   // Make a Phone Call
-      //   PUBNUB.bind('mousedown,touchstart', PUBNUB.$('dial'), function() {
-      //     var number = PUBNUB.$('target-number').value;
-      //     if (!number) return;
-      //     dial(number);
-      //     connected();
-      //   });
-      //
-      //   // Hanup Call
-      //   PUBNUB.bind('mousedown,touchstart', PUBNUB.$('hangup'), function() {
-      //     phone.hangup();
-      //     set_icon('facetime-video');
-      //     ended();
-      //   });
-      // });
-      $('#dial').bind('mousedown touchstart', function() {
-        connected();
-      });
-
-      $('#hangup').bind('mousedown touchstart', function() {
+      phone.ready(function() {
+        // Ready To Call
         set_icon('facetime-video');
-        ended();
+
+        // Auto Call
+        if ('call' in urlargs) {
+          var number = urlargs['call'];
+          PUBNUB.$('target-number').value = number;
+          dial(number);
+        }
+
+        // Make a Phone Call
+        PUBNUB.bind('mousedown,touchstart', PUBNUB.$('dial'), function() {
+          var number = PUBNUB.$('target-number').value;
+          if (!number) return;
+          dial(number);
+        });
+
+        // Hanup Call
+        PUBNUB.bind('mousedown,touchstart', PUBNUB.$('hangup'), function() {
+          phone.hangup();
+          set_icon('facetime-video');
+        });
       });
 
       // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
       // Receiver for Calls
       // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
-      // phone.receive(function(session) {
-      //   session.connected(connected);
-      //   session.ended(ended);
-      // });
+      phone.receive(function(session) {
+        session.connected(connected);
+        session.ended(ended);
+      });
 
 
       // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
       // Problem Occured During Init
       // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
-      // phone.unable(function(details) {
-      //   console.log("Alert! - Reload Page.");
-      //   console.log(details);
-      //   set_icon('remove');
-      // });
+      phone.unable(function(details) {
+        console.log("Alert! - Reload Page.");
+        console.log(details);
+        set_icon('remove');
+      });
 
       // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
       // Debug Output
       // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
-      // phone.debug(function(details) {
-      //   // console.log(details);
-      // });
+      phone.debug(function(details) {
+        // console.log(details);
+      });
 
       // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
       // Voice Level Detection
